@@ -9,13 +9,13 @@ This project uses Terraform to provision an EC2 instance and an ElastiCache Redi
    - Instance type: t3.micro (configurable)
    - AMI: Amazon Linux 2023
 
-![EC2 Instance](./images/ec2.png)
+![EC2 Instance](../images/ec2.png)
 
 2. ElastiCache Redis Cluster
    - Single-node Redis cluster
    - Node type: cache.t3.micro (configurable)
 
-![ElastiCache Redis Cluster](./images/redis.png)
+![ElastiCache Redis Cluster](../images/redis.png)
 
 3. Security Group
    - Allows SSH access to the EC2 instance
@@ -51,7 +51,7 @@ The main configuration is done through the following files:
    terraform apply
    ```
 
-![Terraform Apply](./images/terraform_apply.png)
+![Terraform Apply](../images/terraform_apply.png)
 
 4. To destroy the resources:
    ```
