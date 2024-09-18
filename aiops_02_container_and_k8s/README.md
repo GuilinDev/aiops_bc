@@ -11,7 +11,7 @@ This document outlines the process of deploying a TCP server on a Kubernetes clu
 - [KIND](https://kind.sigs.k8s.io/) (for creating a Kubernetes cluster on local )
 
 ## Directory Structure
-![](images/dir.png)
+![](images/dirs.png)
 
 ## Steps
 
