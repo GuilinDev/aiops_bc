@@ -11,20 +11,7 @@ This document outlines the process of deploying a TCP server on a Kubernetes clu
 - [KIND](https://kind.sigs.k8s.io/) (for creating a Kubernetes cluster on local )
 
 ## Directory Structure
-aiops_02_container_and_k8s
-├── Dockerfile
-├── README.md
-├── images
-├── main
-│   ├── tcp_client.go
-│   └── tcp_server.go
-└── mychart
-    ├── Chart.yaml
-    ├── templates
-    │   ├── deployment.yaml
-    │   ├── pre-install-job.yaml
-    │   └── service.yaml
-    └── values.yaml
+![](images/dir.png)
 
 ## Steps
 
