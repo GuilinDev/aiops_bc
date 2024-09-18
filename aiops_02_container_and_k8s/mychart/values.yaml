@@ -1,0 +1,6 @@
+image:
+  repository: tcp-demo
+  tag: latest
+  pullPolicy: Never
+
+command: ["/app/server"]
