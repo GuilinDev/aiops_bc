@@ -1,0 +1,21 @@
+replicaCount: 1
+
+image:
+  repository: python
+  tag: "3.9-slim"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8000
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+configmap:
+  enabled: true 

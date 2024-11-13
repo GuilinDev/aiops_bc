@@ -1,0 +1,21 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Your release is named {{ .Release.Name }}.
+
+To verify the deployment status:
+
+  kubectl get pods -l app=function-calling
+
+To check pod logs:
+
+  kubectl logs -l app=function-calling
+
+To test the API (after pods are running):
+
+1. Forward the port:
+   kubectl port-forward svc/{{ .Release.Name }}-function-calling 8000:8000
+
+2. Test the endpoints:
+   curl "http://localhost:8000/modify-config/gateway?key=vendor&value=stripe"
+   curl "http://localhost:8000/restart-service/gateway"
+   curl "http://localhost:8000/apply-manifest?resource_type=deployment&image=nginx" 

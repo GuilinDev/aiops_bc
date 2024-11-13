@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-function-calling-code
+data:
+  function_calling_demo.py: |
+    from typing import Any
+    from fastapi import FastAPI
+    import uvicorn
+    
+    app = FastAPI()
+    
+    def modify_config(service_name: str, key: str, value: Any) -> str:
+        return f"已将服务 {service_name} 的 {key} 修改为 {value}"
+    
+    def restart_service(service_name: str) -> str:
+        return f"服务 {service_name} 已重启"
+    
+    def apply_manifest(resource_type: str, image: str) -> str:
+        return f"已部署 {resource_type}，使用镜像 {image}"
+    
+    @app.get("/modify-config/{service_name}")
+    async def modify_config_endpoint(service_name: str, key: str, value: str):
+        return {"result": modify_config(service_name, key, value)}
+    
+    @app.get("/restart-service/{service_name}")
+    async def restart_service_endpoint(service_name: str):
+        return {"result": restart_service(service_name)}
+    
+    @app.get("/apply-manifest")
+    async def apply_manifest_endpoint(resource_type: str, image: str):
+        return {"result": apply_manifest(resource_type, image)}
+    
+    if __name__ == "__main__":
+        uvicorn.run(app, host="0.0.0.0", port=8000) 

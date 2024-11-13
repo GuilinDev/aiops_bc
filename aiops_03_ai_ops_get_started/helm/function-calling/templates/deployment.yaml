@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-function-calling
+  labels:
+    app: function-calling
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: function-calling
+  template:
+    metadata:
+      labels:
+        app: function-calling
+    spec:
+      containers:
+        - name: function-calling
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+            - name: function-calling-code
+              mountPath: /app
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              pip install --no-cache-dir fastapi uvicorn[standard]
+              cd /app && python function_calling_demo.py
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: function-calling-code
+          configMap:
+            name: {{ .Release.Name }}-function-calling-code
+            defaultMode: 0777
