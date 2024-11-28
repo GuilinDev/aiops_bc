@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/kubectl/pkg/scheme"
+	"github.com/erikgeiser/coninput"
 )
 
 // chatgptCmd represents the chatgpt command
@@ -120,7 +121,7 @@ func functionCalling(input string, client *utils.OpenAI) string {
 	// 用来删除 K8s 资源
 	f3 := openai.FunctionDefinition{
 		Name:        "deleteResource",
-		Description: "删除 K8s 资源",
+		Description: "删除 K8s 资源，会提示确认",
 		Parameters: jsonschema.Definition{
 			Type: jsonschema.Object,
 			Properties: map[string]jsonschema.Definition{
@@ -134,9 +135,10 @@ func functionCalling(input string, client *utils.OpenAI) string {
 				},
 				"resource_name": {
 					Type:        jsonschema.String,
-					Description: "资源名称",
+					Description: "要删除的资源名称",
 				},
 			},
+			Required: []string{"namespace", "resource_type", "resource_name"},
 		},
 	}
 
@@ -204,7 +206,15 @@ func callFunction(client *utils.OpenAI, name, arguments string) (string, error) 
 		return queryResource(params.Namespace, params.ResourceType)
 	}
 	if name == "deleteResource" {
-		deleteResource()
+		params := struct {
+			Namespace    string `json:"namespace"`
+			ResourceType string `json:"resource_type"`
+			ResourceName string `json:"resource_name"`
+		}{}
+		if err := json.Unmarshal([]byte(arguments), &params); err != nil {
+			return "", fmt.Errorf("failed to parse function call name=%s arguments=%s", name, arguments)
+		}
+		return deleteResource(params.Namespace, params.ResourceType, params.ResourceName)
 	}
 	return "", fmt.Errorf("unknown function: %s", name)
 }
@@ -286,9 +296,57 @@ func queryResource(namespace, resourceType string) (string, error) {
 	return result, nil
 }
 
-// 删除 K8s 资源，课后作业
-func deleteResource() {
+// 删除 K8s 资源
+func deleteResource(namespace, resourceType, resourceName string) (string, error) {
+	// 1. 获取 clientGo
+	clientGo, err := utils.NewClientGo(kubeconfig)
+	if err != nil {
+		return "", fmt.Errorf("error creating Kubernetes clients: %v", err)
+	}
 
+	// 2. 根据资源类型确定 GVR
+	resourceType = strings.ToLower(resourceType)
+	var gvr schema.GroupVersionResource
+	switch resourceType {
+	case "deployment":
+		gvr = schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
+	case "service":
+		gvr = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "services"}
+	case "pod":
+		gvr = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
+	default:
+		return "", fmt.Errorf("unsupported resource type: %s", resourceType)
+	}
+
+	// 3. 检查资源是否存在
+	_, err = clientGo.DynamicClient.Resource(gvr).Namespace(namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("resource not found: %v", err)
+	}
+
+	// 4. 显示确认提示
+	fmt.Printf("\n⚠️  警告: 你即将删除以下资源:\n")
+	fmt.Printf("   类型: %s\n", resourceType)
+	fmt.Printf("   名称: %s\n", resourceName)
+	fmt.Printf("   命名空间: %s\n\n", namespace)
+	
+	// 使用 coninput 进行确认
+	confirmed, err := coninput.ConfirmPrompt("确认删除这个资源吗？(y/n): ", false)
+	if err != nil {
+		return "", fmt.Errorf("confirmation error: %v", err)
+	}
+
+	if !confirmed {
+		return "操作已取消", nil
+	}
+
+	// 5. 执行删除操作
+	err = clientGo.DynamicClient.Resource(gvr).Namespace(namespace).Delete(context.TODO(), resourceName, metav1.DeleteOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to delete resource: %v", err)
+	}
+
+	return fmt.Sprintf("成功删除 %s %s/%s", resourceType, namespace, resourceName), nil
 }
 
 func init() {
