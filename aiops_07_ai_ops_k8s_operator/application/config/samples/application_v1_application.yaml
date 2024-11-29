@@ -27,3 +27,8 @@ spec:
                   name: application-sample
                   port:
                     number: 80
+  configMap:
+    data:
+      DATABASE_URL: "mysql://user:pass@localhost:3306/db"
+      API_KEY: "your-api-key"
+      ENVIRONMENT: "production"

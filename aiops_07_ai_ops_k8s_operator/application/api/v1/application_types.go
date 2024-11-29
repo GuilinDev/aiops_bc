@@ -34,6 +34,7 @@ type ApplicationSpec struct {
 	Deployment ApplicationDeployment    `json:"deployment"`
 	Service    corev1.ServiceSpec       `json:"service"`
 	Ingress    networkingv1.IngressSpec `json:"ingress"`
+	ConfigMap  *ConfigMapSpec           `json:"configMap,omitempty"`
 }
 
 type ApplicationDeployment struct {
@@ -72,4 +73,8 @@ type ApplicationList struct {
 
 func init() {
 	SchemeBuilder.Register(&Application{}, &ApplicationList{})
+}
+
+type ConfigMapSpec struct {
+	Data map[string]string `json:"data"`
 }

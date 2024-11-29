@@ -174,6 +174,46 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	logger.Info("Ingress created or updated", "Name", ingress.Name)
 
+	// 创建或更新 ConfigMap
+	if app.Spec.ConfigMap != nil {
+		configMap := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      app.Name,
+				Namespace: app.Namespace,
+			},
+		}
+
+		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, configMap, func() error {
+			// 设置数据
+			configMap.Data = app.Spec.ConfigMap.Data
+
+			// 设置所有者引用
+			if err := controllerutil.SetControllerReference(&app, configMap, r.Scheme); err != nil {
+				return err
+			}
+			return nil
+		})
+
+		if err != nil {
+			logger.Error(err, "unable to create or update ConfigMap")
+			return ctrl.Result{}, err
+		}
+
+		logger.Info("ConfigMap created or updated", "Name", configMap.Name)
+
+		// 在 Deployment 中挂载 ConfigMap
+		// 修改 Deployment 的创建逻辑
+		deployment.Spec.Template.Spec.Containers[0].EnvFrom = []corev1.EnvFromSource{
+			{
+				ConfigMapRef: &corev1.ConfigMapEnvSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: configMap.Name,
+					},
+				},
+			},
+		}
+	}
+
 	// Update the status of the Application
 	app.Status.AvailableReplicas = *deployment.Spec.Replicas
 	if err := r.Status().Update(ctx, &app); err != nil {
