@@ -104,7 +104,13 @@ func (r *LogPilotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// 如果有日志结果，调用 LLM 进行分析
 	if lokiLogs != "" {
 		fmt.Println("send logs to LLM")
-		analysisResult, err := r.analyzeLogsWithLLM(logPilot.Spec.LLMEndpoint, logPilot.Spec.LLMToken, logPilot.Spec.LLMModel, lokiLogs)
+		analysisResult, err := r.analyzeLogsWithLLM(
+			logPilot.Spec.LLMEndpoint,
+			logPilot.Spec.LLMToken,
+			logPilot.Spec.LLMModel,
+			lokiLogs,
+			logPilot.Spec.LLMType,
+		)
 		if err != nil {
 			logger.Error(err, "unable to analyze logs with LLM")
 			return ctrl.Result{}, err
@@ -173,30 +179,39 @@ type LLMAnalysisResult struct {
 }
 
 // analyzeLogsWithLLM 调用 LLM 接口分析日志
-func (r *LogPilotReconciler) analyzeLogsWithLLM(endpoint, token, model, logs string) (*LLMAnalysisResult, error) {
-	config := openai.DefaultConfig(token)
-	config.BaseURL = endpoint
-	client := openai.NewClientWithConfig(config)
+func (r *LogPilotReconciler) analyzeLogsWithLLM(endpoint, token, model, logs string, llmType string) (*LLMAnalysisResult, error) {
+	// 根据 LLM 类型选择不同的实现
+	switch llmType {
+	case "ollama":
+		return r.analyzeLogsWithOllama(endpoint, model, logs)
+	case "openai":
+		// 原有的 OpenAI 实现
+		config := openai.DefaultConfig(token)
+		config.BaseURL = endpoint
+		client := openai.NewClientWithConfig(config)
 
-	resp, err := client.CreateChatCompletion(
-		context.Background(),
-		openai.ChatCompletionRequest{
-			Model: model,
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleUser,
-					Content: fmt.Sprintf("你现在是一名运维专家，以下日志是从日志系统里获取的日志，请分析日志的错误等级，如果遇到严重的问题，例如请求外部系统失败、外部系统故障、致命故障、数据库连接错误等严重问题时，请给出简短的建议，对于你认为严重需要通知运营人员的，请在返回内容里增加[feishu]标识:\n%s", logs),
+		resp, err := client.CreateChatCompletion(
+			context.Background(),
+			openai.ChatCompletionRequest{
+				Model: model,
+				Messages: []openai.ChatCompletionMessage{
+					{
+						Role:    openai.ChatMessageRoleUser,
+						Content: fmt.Sprintf("你现在是一名运维专家，以下日志是从日志系统里获取的日志，请��析日志的错误等级，如果遇到严重的问题，例如请求外部系统失败、外部系统故障、致命故障、数据库连接错误等严重问题时，请给出简短的建议，对于你认为严重需要通知运营人员的，请在返回内容里增加[feishu]标识:\n%s", logs),
+					},
 				},
 			},
-		},
-	)
+		)
 
-	if err != nil {
-		fmt.Printf("ChatCompletion error: %v\n", err)
-		return nil, err
+		if err != nil {
+			fmt.Printf("ChatCompletion error: %v\n", err)
+			return nil, err
+		}
+
+		return parseLLMResponse(&resp), nil
+	default:
+		return nil, fmt.Errorf("unsupported LLM type: %s", llmType)
 	}
-
-	return parseLLMResponse(&resp), nil
 }
 
 // parseLLMResponse 解析 LLM API 的响应
@@ -259,4 +274,39 @@ func (r *LogPilotReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&logv1.LogPilot{}).
 		Complete(r)
+}
+
+// 添加新的函数用于调用 Ollama
+func (r *LogPilotReconciler) analyzeLogsWithOllama(endpoint, model, logs string) (*LLMAnalysisResult, error) {
+	// Ollama API 请求结构
+	requestBody := map[string]interface{}{
+		"model":  model, // 例如 "qwen2"
+		"prompt": fmt.Sprintf("你现在是一名运维专家，以下日志是从日志系统里获取的日志，请分析日志的错误等级，如果遇到严重的问题，例如请求外部系统失败、外部系统故障、致命故障、数据库连接错误等严重问题时，请给出简短的建议，对于你认为严重需要通知运营人员的，请在返回内容里增加[feishu]标识:\n%s", logs),
+	}
+
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, err
+	}
+
+	// 发送请求到 Ollama
+	resp, err := http.Post(fmt.Sprintf("%s/api/generate", endpoint), 
+		"application/json", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	// 解析 Ollama 响应
+	response := &LLMAnalysisResult{
+		Analysis: result["response"].(string),
+		HasErrors: strings.Contains(strings.ToLower(result["response"].(string)), "feishu"),
+	}
+
+	return response, nil
 }

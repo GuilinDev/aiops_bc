@@ -38,6 +38,8 @@ type LogPilotSpec struct {
 	LLMToken string `json:"llmToken"`
 	// LLM Model
 	LLMModel string `json:"llmModel"`
+	// LLM Type
+	LLMType string `json:"llmType,omitempty"`
 	// Feishu Webhook
 	FeishuWebhook string `json:"feishuWebhook"`
 }

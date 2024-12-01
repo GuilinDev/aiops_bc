@@ -1,0 +1,11 @@
+apiVersion: log.aiops.com/v1
+kind: LogPilot
+metadata:
+  name: logpilot-ollama
+spec:
+  lokiURL: "http://43.154.108.115:31000"
+  lokiPromQL: '{app="payment"} |= `ERROR`'
+  llmType: "ollama"
+  llmEndpoint: "http://host.docker.internal:11434"
+  llmModel: "qwen2"
+  feishuWebhook: "https://open.feishu.cn/open-apis/bot/v2/hook/xxx" 
