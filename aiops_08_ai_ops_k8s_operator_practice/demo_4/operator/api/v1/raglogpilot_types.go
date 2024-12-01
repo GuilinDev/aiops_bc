@@ -31,6 +31,9 @@ type RagLogPilotSpec struct {
 	WorkloadNameSpace string `json:"workloadNameSpace"`
 	RagFlowEndpoint   string `json:"ragFlowEndpoint"`
 	RagFlowToken      string `json:"ragFlowToken"`
+	LLMType          string `json:"llmType,omitempty"`
+	LLMEndpoint      string `json:"llmEndpoint,omitempty"`
+	LLMModel         string `json:"llmModel,omitempty"`
 }
 
 // RagLogPilotStatus defines the observed state of RagLogPilot

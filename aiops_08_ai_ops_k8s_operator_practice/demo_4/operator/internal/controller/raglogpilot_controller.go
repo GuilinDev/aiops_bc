@@ -175,15 +175,37 @@ func (r *RagLogPilotReconciler) createNewConversation(ragLogPilot logv1.RagLogPi
 
 // 查询 RAG 系统
 func (r *RagLogPilotReconciler) queryRagSystem(podLog string, ragLogPilot logv1.RagLogPilot) (string, error) {
-	payload := map[string]interface{}{
-		"conversation_id": ragLogPilot.Status.ConversationId,
-		"messages": []map[string]string{
-			{
-				"role":    "user",
-				"content": fmt.Sprintf("以下是获取到的日志：%s，请基于运维知识库进行解答，如果你不知道，就说不知道", podLog),
+	var payload map[string]interface{}
+	
+	// 根据 LLM 类型构建不同的请求
+	if ragLogPilot.Spec.LLMType == "ollama" {
+		payload = map[string]interface{}{
+			"conversation_id": ragLogPilot.Status.ConversationId,
+			"messages": []map[string]string{
+				{
+					"role": "user",
+					"content": fmt.Sprintf("以下是获取到的日志：%s，请基于运维知识库进行解答，如果你不知道，就说不知道", podLog),
+				},
 			},
-		},
-		"stream": false,
+			"llm_config": map[string]string{
+				"type": "ollama",
+				"endpoint": ragLogPilot.Spec.LLMEndpoint,
+				"model": ragLogPilot.Spec.LLMModel,
+			},
+			"stream": false,
+		}
+	} else {
+		// 原有的请求结构
+		payload = map[string]interface{}{
+			"conversation_id": ragLogPilot.Status.ConversationId,
+			"messages": []map[string]string{
+				{
+					"role": "user",
+					"content": fmt.Sprintf("以下是获取到的日志：%s，请基于运维知识库进行解答，如果你不知道，就说不知道", podLog),
+				},
+			},
+			"stream": false,
+		}
 	}
 
 	body, err := json.Marshal(payload)

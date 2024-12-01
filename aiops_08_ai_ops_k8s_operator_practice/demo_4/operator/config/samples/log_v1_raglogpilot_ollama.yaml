@@ -1,0 +1,11 @@
+apiVersion: log.aiops.com/v1
+kind: RagLogPilot
+metadata:
+  name: raglogpilot-ollama
+spec:
+  workloadNameSpace: default
+  ragFlowEndpoint: "http://ragflow-service/v1/api"
+  ragFlowToken: "your-token"
+  llmType: "ollama"
+  llmEndpoint: "http://host.docker.internal:11434"  # Mac 上访问本地 Ollama
+  llmModel: "qwen2"  # 使用 Qwen2 模型 
